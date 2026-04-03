@@ -1,9 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { format, differenceInCalendarDays, isToday, isYesterday } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
+
+export interface Category {
+  id: string;
+  name: string;
+  emoji: string;
+  createdAt: string;
+}
 
 export interface Task {
   id: string;
@@ -14,10 +21,12 @@ export interface Task {
   createdAt: string;
   completedAt?: string;
   xpEarned?: number;
+  categoryId?: string;
 }
 
 export interface GameState {
   tasks: Task[];
+  categories: Category[];
   totalXp: number;
   currentStreak: number;
   bestStreak: number;
@@ -26,14 +35,14 @@ export interface GameState {
 }
 
 interface TaskStore extends GameState {
-  addTask: (title: string, description: string, difficulty: Difficulty) => void;
+  addTask: (title: string, description: string, difficulty: Difficulty, categoryId?: string) => void;
   completeTask: (id: string) => void;
   deleteTask: (id: string) => void;
   clearCompleted: () => void;
-  getCurrentLevel: () => number;
-  getLevelProgress: () => number;
-  getXpForLevel: (level: number) => number;
-  getXpForDifficulty: (difficulty: Difficulty) => number;
+  addCategory: (name: string, emoji: string) => void;
+  deleteCategory: (id: string) => void;
+  updateCategory: (id: string, name: string, emoji: string) => void;
+  resetAll: () => void;
 }
 
 const XP_MAP: Record<Difficulty, number> = {
@@ -42,17 +51,47 @@ const XP_MAP: Record<Difficulty, number> = {
   hard: 50,
 };
 
+// ==================== PROGRESSIVE XP SYSTEM ====================
+// Level 1: 50 XP, Level 2: 60 XP, Level 3: 70 XP, ...
+// XP needed for level N = 50 + (N - 1) * 10
+// Cumulative XP to reach level N = 5 * (N-1) * (N+8)
+
+export function getXpForLevel(level: number): number {
+  return 50 + (level - 1) * 10;
+}
+
+export function getCumulativeXpForLevel(level: number): number {
+  if (level <= 1) return 0;
+  return 5 * (level - 1) * (level + 8);
+}
+
+export function getLevelFromXp(totalXp: number): number {
+  const t = totalXp / 5;
+  const level = Math.floor((-7 + Math.sqrt(81 + 4 * t)) / 2);
+  return Math.max(1, level);
+}
+
+export function getLevelInfo(totalXp: number) {
+  const level = getLevelFromXp(totalXp);
+  const xpForNext = getXpForLevel(level);
+  const cumulativeXp = getCumulativeXpForLevel(level);
+  const xpInLevel = totalXp - cumulativeXp;
+  const progress = Math.min(100, (xpInLevel / xpForNext) * 100);
+  return { level, xpForNext, xpInLevel, progress, totalXp };
+}
+
 export const useTaskStore = create<TaskStore>()(
   persist(
     (set, get) => ({
       tasks: [],
+      categories: [],
       totalXp: 0,
       currentStreak: 0,
       bestStreak: 0,
       totalCompleted: 0,
       lastCompletedDate: undefined,
 
-      addTask: (title, description, difficulty) => {
+      addTask: (title, description, difficulty, categoryId) => {
         const newTask: Task = {
           id: uuidv4(),
           title,
@@ -60,6 +99,7 @@ export const useTaskStore = create<TaskStore>()(
           difficulty,
           completed: false,
           createdAt: new Date().toISOString(),
+          categoryId: categoryId || undefined,
         };
         set((state) => ({
           tasks: [newTask, ...state.tasks],
@@ -75,7 +115,6 @@ export const useTaskStore = create<TaskStore>()(
         const todayStr = format(now, 'yyyy-MM-dd');
         const xp = XP_MAP[task.difficulty];
 
-        // Calculate streak
         let newStreak = state.currentStreak;
         let newBestStreak = state.bestStreak;
 
@@ -84,17 +123,13 @@ export const useTaskStore = create<TaskStore>()(
           const daysDiff = differenceInCalendarDays(now, lastDate);
 
           if (daysDiff === 0) {
-            // Same day — streak stays the same
             newStreak = state.currentStreak;
           } else if (daysDiff === 1) {
-            // Consecutive day — increment streak
             newStreak = state.currentStreak + 1;
           } else {
-            // Streak broken — reset to 1
             newStreak = 1;
           }
         } else {
-          // First completion ever
           newStreak = 1;
         }
 
@@ -133,22 +168,45 @@ export const useTaskStore = create<TaskStore>()(
         }));
       },
 
-      getCurrentLevel: () => {
-        const { totalXp } = get();
-        return Math.floor(totalXp / 50) + 1;
+      addCategory: (name, emoji) => {
+        const newCategory: Category = {
+          id: uuidv4(),
+          name,
+          emoji,
+          createdAt: new Date().toISOString(),
+        };
+        set((state) => ({
+          categories: [...state.categories, newCategory],
+        }));
       },
 
-      getLevelProgress: () => {
-        const { totalXp } = get();
-        return (totalXp % 50) / 50 * 100;
+      deleteCategory: (id) => {
+        set((state) => ({
+          categories: state.categories.filter((c) => c.id !== id),
+          tasks: state.tasks.map((t) =>
+            t.categoryId === id ? { ...t, categoryId: undefined } : t
+          ),
+        }));
       },
 
-      getXpForLevel: (level: number) => {
-        return level * 50;
+      updateCategory: (id, name, emoji) => {
+        set((state) => ({
+          categories: state.categories.map((c) =>
+            c.id === id ? { ...c, name, emoji } : c
+          ),
+        }));
       },
 
-      getXpForDifficulty: (difficulty: Difficulty) => {
-        return XP_MAP[difficulty];
+      resetAll: () => {
+        set({
+          tasks: [],
+          categories: [],
+          totalXp: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          totalCompleted: 0,
+          lastCompletedDate: undefined,
+        });
       },
     }),
     {
