@@ -35,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" suppressHydrationWarning data-theme="cyber">
+    <html lang="ru" suppressHydrationWarning data-theme="cyber" data-mode="game">
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -44,6 +44,8 @@ export default function RootLayout({
                 try {
                   var t = localStorage.getItem('taskquest-theme');
                   if (t) document.documentElement.setAttribute('data-theme', t);
+                  var m = localStorage.getItem('taskquest-mode');
+                  if (m) document.documentElement.setAttribute('data-mode', m);
                 } catch(e) {}
               })();
             `,
