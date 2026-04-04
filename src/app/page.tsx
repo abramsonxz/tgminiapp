@@ -7,13 +7,13 @@ import {
   ChevronDown, ChevronRight, Pencil, Tag, Settings, RotateCcw,
   Star, Shield, Gamepad2, Swords, Scroll, Medal, Crown,
   Moon, Sun, Waves, FlameKindling, Monitor, X, Gem, Heart,
-  SwordsIcon, Palette,
+  SwordsIcon, Palette, Lock, Clock, Bell, Award, User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useTaskStore, type Difficulty, type Category, getLevelInfo, getXpForLevel } from '@/store/task-store';
+import { useTaskStore, type Difficulty, type Category, getLevelInfo, getXpForLevel, ALL_ACHIEVEMENTS, ALL_AVATARS, type Achievement, isTaskOverdue } from '@/store/task-store';
 
 // ════════════════════════════════════════════════════════════
 //                    TYPE DEFINITIONS
@@ -394,12 +394,13 @@ function GameQuestCard({ task, index, onComplete, onDelete }: {
   index: number; onComplete: (id: string, xp: number) => void; onDelete: (id: string) => void;
 }) {
   const cfg = DIFFICULTY_CONFIG[task.difficulty];
+  const overdue = isTaskOverdue(task);
   return (
     <motion.div layout initial={{ opacity: 0, y: 15, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, x: -100, scale: 0.95 }} transition={{ duration: 0.3, delay: index * 0.03, layout: { duration: 0.3 } }}>
-      <div className={`rounded-2xl transition-all duration-300 overflow-hidden border-l-4 ${cfg.border} ${
+      <div className={`rounded-2xl transition-all duration-300 overflow-hidden border-l-4 ${cfg.border} ${overdue ? 'animate-overdue-pulse' : ''} ${
         task.completed ? 'glass opacity-60' : 'glass-strong hover:bg-[var(--theme-hover-bg)]'
-      }`}>
+      }`} style={overdue ? { boxShadow: '0 0 12px rgba(239,68,68,0.3), 0 0 4px rgba(239,68,68,0.5)' } : undefined}>
         <div className="p-3.5">
           <div className="flex items-start gap-3">
             {/* Complete Button */}
@@ -431,6 +432,16 @@ function GameQuestCard({ task, index, onComplete, onDelete }: {
                 {task.completed && (
                   <span className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20">✓ Завершено</span>
                 )}
+                {overdue && (
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-destructive/15 px-2 py-0.5 text-[10px] font-bold text-destructive border border-destructive/25 animate-pulse">
+                    <Clock className="h-2.5 w-2.5" />Просрочено
+                  </span>
+                )}
+                {task.reminder && !overdue && !task.completed && (
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-[var(--theme-white-alpha-10)] px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-[var(--theme-glass-border)]">
+                    <Clock className="h-2.5 w-2.5" />{new Date(task.reminder).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -454,10 +465,11 @@ function MinimalQuestCard({ task, index, onComplete, onDelete }: {
   index: number; onComplete: (id: string, xp: number) => void; onDelete: (id: string) => void;
 }) {
   const cfg = DIFFICULTY_CONFIG[task.difficulty];
+  const overdue = isTaskOverdue(task);
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -60 }} transition={{ duration: 0.2, delay: index * 0.02 }}>
-      <div className={`flex items-center gap-3 p-3 rounded-xl border border-border bg-card transition-all ${task.completed ? 'opacity-50' : ''}`}>
+      <div className={`flex items-center gap-3 p-3 rounded-xl border bg-card transition-all ${task.completed ? 'opacity-50 border-border' : overdue ? 'border-destructive/50' : 'border-border'}`} style={overdue ? { boxShadow: '0 0 8px rgba(239,68,68,0.15)' } : undefined}>
         {/* Checkbox */}
         {task.completed ? (
           <div className="flex-shrink-0 h-5 w-5 rounded-md bg-primary flex items-center justify-center">
@@ -473,6 +485,16 @@ function MinimalQuestCard({ task, index, onComplete, onDelete }: {
           {task.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{task.description}</p>}
         </div>
         <span className={`flex-shrink-0 text-xs font-semibold ${cfg.color}`}>+{cfg.xp}</span>
+        {overdue && (
+          <span className="flex-shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold text-destructive">
+            <Clock className="h-2.5 w-2.5" />
+          </span>
+        )}
+        {task.reminder && !overdue && !task.completed && (
+          <span className="flex-shrink-0 inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground">
+            <Clock className="h-2.5 w-2.5" />
+          </span>
+        )}
         <button onClick={() => onDelete(task.id)}
           className="flex-shrink-0 h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground/30 hover:text-destructive transition-colors">
           <Trash2 className="h-3.5 w-3.5" />
@@ -582,7 +604,7 @@ function ModeToggle({ gameMode, setMode }: { gameMode: boolean; setMode: (m: 'ga
 // ════════════════════════════════════════════════════════════
 export default function Home() {
   const store = useTaskStore();
-  const [activePage, setActivePage] = useState<'home' | 'types' | 'settings'>('home');
+  const [activePage, setActivePage] = useState<'home' | 'achievements' | 'types' | 'settings'>('home');
   const [navHidden, setNavHidden] = useState(false);
   const { gameMode, mode, setMode } = useGameMode();
 
@@ -619,6 +641,7 @@ export default function Home() {
         <div className="mx-auto max-w-lg px-4 pt-4">
           <AnimatePresence mode="wait">
             {activePage === 'home' && <HomePage key="home" store={store} gameMode={gameMode} onModalOpen={() => setNavHidden(true)} onModalClose={() => setNavHidden(false)} />}
+            {activePage === 'achievements' && <AchievementsPage key="achievements" store={store} gameMode={gameMode} />}
             {activePage === 'types' && <TypesPage key="types" store={store} gameMode={gameMode} />}
             {activePage === 'settings' && <SettingsPage key="settings" store={store} gameMode={gameMode} mode={mode} setMode={setMode} />}
           </AnimatePresence>
@@ -632,9 +655,10 @@ export default function Home() {
 // ════════════════════════════════════════════════════════════
 //                      BOTTOM NAV
 // ════════════════════════════════════════════════════════════
-function BottomNav({ activePage, setActivePage, gameMode }: { activePage: string; setActivePage: (p: 'home' | 'types' | 'settings') => void; gameMode: boolean }) {
+function BottomNav({ activePage, setActivePage, gameMode }: { activePage: string; setActivePage: (p: 'home' | 'achievements' | 'types' | 'settings') => void; gameMode: boolean }) {
   const tabs = [
     { key: 'home' as const, label: 'Задачи', icon: Swords },
+    { key: 'achievements' as const, label: 'Достижения', icon: Trophy },
     { key: 'types' as const, label: 'Типы', icon: Tag },
     { key: 'settings' as const, label: 'Настройки', icon: Settings },
   ];
@@ -694,6 +718,7 @@ function HomePage({ store, gameMode, onModalOpen, onModalClose }: {
   const [xpPopup, setXpPopup] = useState({ show: false, xp: 0 });
   const [levelUpPopup, setLevelUpPopup] = useState({ show: false, level: 0 });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [taskReminder, setTaskReminder] = useState('');
   const xpRef = useRef<NodeJS.Timeout | null>(null);
   const lvlRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -723,15 +748,16 @@ function HomePage({ store, gameMode, onModalOpen, onModalClose }: {
     }
   }, [completeTask, totalXp]);
 
-  const openModal = useCallback(() => { setShowAddForm(true); onModalOpen(); }, [onModalOpen]);
-  const closeModal = useCallback(() => { setShowAddForm(false); onModalClose(); }, [onModalClose]);
+  const openModal = useCallback(() => { setShowAddForm(true); setTaskReminder(''); onModalOpen(); }, [onModalOpen]);
+  const closeModal = useCallback(() => { setShowAddForm(false); setTaskReminder(''); onModalClose(); }, [onModalClose]);
 
   const handleAdd = useCallback(() => {
     if (!taskTitle.trim()) return;
-    addTask(taskTitle.trim(), taskDescription.trim(), selectedDifficulty, selectedCategoryId || undefined);
-    setTaskTitle(''); setTaskDescription(''); setShowDescription(false); setSelectedCategoryId(null);
+    const reminderISO = taskReminder ? (() => { try { const d = new Date(); const [h, m] = taskReminder.split(':').map(Number); d.setHours(h, m, 0, 0); return d.toISOString(); } catch { return undefined; } })() : undefined;
+    addTask(taskTitle.trim(), taskDescription.trim(), selectedDifficulty, selectedCategoryId || undefined, reminderISO);
+    setTaskTitle(''); setTaskDescription(''); setShowDescription(false); setSelectedCategoryId(null); setTaskReminder('');
     closeModal();
-  }, [taskTitle, taskDescription, selectedDifficulty, selectedCategoryId, addTask, closeModal]);
+  }, [taskTitle, taskDescription, selectedDifficulty, selectedCategoryId, taskReminder, addTask, closeModal]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && !showDescription) { e.preventDefault(); handleAdd(); }
@@ -904,6 +930,32 @@ function HomePage({ store, gameMode, onModalOpen, onModalClose }: {
                   </div>
                 </div>
 
+                {/* Reminder */}
+                <div>
+                  <button onClick={() => setTaskReminder(taskReminder ? '' : `${String(new Date().getHours() + 1).padStart(2, '0')}:00`)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium">
+                    <Clock className="h-3.5 w-3.5" />
+                    {taskReminder ? `Напоминание: ${taskReminder}` : 'Добавить напоминание'}
+                    {taskReminder && <X className="h-3 w-3" />}
+                  </button>
+                  <AnimatePresence>
+                    {taskReminder && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden mt-2">
+                        <Input
+                          type="time"
+                          value={taskReminder}
+                          onChange={(e) => setTaskReminder(e.target.value)}
+                          className={`h-11 rounded-xl ${gameMode
+                            ? 'bg-[var(--theme-white-alpha-5)] border-[var(--theme-glass-strong-border)] text-foreground'
+                            : 'bg-background border-border text-foreground'
+                          }`}
+                        />
+                        <p className="text-[10px] text-muted-foreground mt-1">Задача будет подсвечена после этого времени</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
                 <Button onClick={handleAdd} disabled={!taskTitle.trim()}
                   className={`w-full h-11 font-bold rounded-xl shadow-lg border-0 ${
                     gameMode
@@ -926,6 +978,222 @@ function HomePage({ store, gameMode, onModalOpen, onModalClose }: {
           </Button>
         </motion.div>
       )}
+    </motion.div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+//              ACHIEVEMENT UNLOCK POPUP
+// ════════════════════════════════════════════════════════════
+function AchievementUnlockPopup({ store, gameMode }: { store: ReturnType<typeof useTaskStore>; gameMode: boolean }) {
+  const { newlyUnlocked, dismissNewAchievement } = store;
+  const achievement = newlyUnlocked ? ALL_ACHIEVEMENTS.find((a) => a.id === newlyUnlocked) : null;
+  if (!achievement) return null;
+  const rarityColors = { common: 'from-slate-400 to-zinc-500', rare: 'from-blue-400 to-cyan-500', epic: 'from-purple-500 to-fuchsia-500', legendary: 'from-amber-400 to-orange-500' };
+  const rarityLabels = { common: 'Обычное', rare: 'Редкое', epic: 'Эпическое', legendary: 'Легендарное' };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-auto"
+        onClick={dismissNewAchievement}
+      >
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div
+          initial={{ scale: 0, y: 60, rotate: -10 }}
+          animate={{ scale: 1, y: 0, rotate: 0 }}
+          exit={{ scale: 0.5, opacity: 0, y: 40 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+          className="relative w-[300px] rounded-3xl overflow-hidden pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+          style={gameMode ? { background: 'var(--card)' } : undefined}
+        >
+          {/* Glow background */}
+          <div className={`absolute inset-0 bg-gradient-to-br ${rarityColors[achievement.rarity]} opacity-20`} />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.1),transparent_70%)]" />
+          {/* Shimmer */}
+          <motion.div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" animate={{ x: ['-100%', '200%'] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }} />
+
+          <div className="relative p-6 text-center">
+            <motion.div
+              animate={{ y: [0, -6, 0], scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-6xl mb-3"
+            >{achievement.icon}</motion.div>
+            <div className={`text-[10px] font-black uppercase tracking-[0.2em] bg-gradient-to-r ${rarityColors[achievement.rarity]} bg-clip-text text-transparent mb-1`}>
+              {rarityLabels[achievement.rarity]}
+            </div>
+            <div className="text-sm font-bold text-foreground mb-0.5">Достижение разблокировано!</div>
+            <div className="text-xl font-black text-foreground">{achievement.name}</div>
+            <div className="text-xs text-muted-foreground mt-1">{achievement.desc}</div>
+            <button onClick={dismissNewAchievement} className="mt-4 w-full h-9 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors">
+              Отлично!
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+//                    ACHIEVEMENTS PAGE
+// ════════════════════════════════════════════════════════════
+function AchievementsPage({ store, gameMode }: { store: ReturnType<typeof useTaskStore>; gameMode: boolean }) {
+  const { achievements, achievementDates, totalXp, totalCompleted, bestStreak, categories, selectedAvatar, setAvatar } = store;
+  const [activeSection, setActiveSection] = useState<'achievements' | 'avatars'>('achievements');
+  const levelInfo = getLevelInfo(totalXp);
+  const rank = getRank(levelInfo.level);
+
+  const unlockedCount = achievements.length;
+  const totalCount = ALL_ACHIEVEMENTS.length;
+  const rarityColors: Record<string, string> = { common: 'border-slate-400/30 bg-slate-500/5', rare: 'border-blue-400/30 bg-blue-500/5', epic: 'border-purple-400/30 bg-purple-500/5', legendary: 'border-amber-400/30 bg-amber-500/5' };
+  const rarityTextColors: Record<string, string> = { common: 'text-slate-400', rare: 'text-blue-400', epic: 'text-purple-400', legendary: 'text-amber-400' };
+
+  return (
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.25 }}>
+      <AchievementUnlockPopup store={store} gameMode={gameMode} />
+
+      <header className="flex items-center gap-3 py-4">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${gameMode ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/20' : 'bg-amber-500/10'}`}>
+          <Award className={`h-6 w-6 ${gameMode ? 'text-white' : 'text-amber-500'}`} />
+        </div>
+        <div>
+          <h1 className="text-xl font-black tracking-tight text-foreground">Достижения</h1>
+          <p className="text-[11px] text-muted-foreground font-medium">{unlockedCount} / {totalCount} получено</p>
+        </div>
+      </header>
+
+      {/* Progress bar */}
+      <div className={`rounded-2xl p-4 ${gameMode ? 'glass-strong' : 'bg-card border border-border'}`}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-foreground">Прогресс</span>
+          <span className="text-xs font-bold text-primary">{Math.round((unlockedCount / totalCount) * 100)}%</span>
+        </div>
+        <div className="h-2.5 rounded-full bg-foreground/10 overflow-hidden">
+          <motion.div className="h-full rounded-full bg-gradient-to-r from-primary to-primary/80"
+            initial={{ width: 0 }} animate={{ width: `${(unlockedCount / totalCount) * 100}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }} />
+        </div>
+      </div>
+
+      {/* Section toggle */}
+      <div className={`flex gap-1 p-1 rounded-2xl mt-4 ${gameMode ? 'glass-strong' : 'bg-card border border-border'}`}>
+        {[
+          { key: 'achievements' as const, label: '🏅 Награды' },
+          { key: 'avatars' as const, label: '🎭 Аватары' },
+        ].map((tab) => (
+          <button key={tab.key} onClick={() => setActiveSection(tab.key)}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all relative ${
+              activeSection === tab.key ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/60'
+            }`}>
+            {activeSection === tab.key && (
+              <motion.div layoutId="ach-tab"
+                className={`absolute inset-0 rounded-xl ${gameMode ? 'bg-primary/10 border border-primary/20' : 'bg-primary/5'}`}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }} />
+            )}
+            <span className="relative z-10">{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeSection === 'achievements' && (
+          <motion.div key="ach-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="mt-4">
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_ACHIEVEMENTS.map((ach, i) => {
+                const isUnlocked = achievements.includes(ach.id);
+                const unlockDate = achievementDates[ach.id];
+                return (
+                  <motion.div key={ach.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.03 }}
+                    className={`rounded-2xl p-3 border transition-all ${isUnlocked
+                      ? `${rarityColors[ach.rarity]} ${gameMode ? 'glass' : ''}`
+                      : `${gameMode ? 'glass opacity-40' : 'bg-card border-border opacity-40'}`
+                    }`}>
+                    <div className="text-3xl mb-2 relative">
+                      <span className={isUnlocked ? '' : 'grayscale'}>{ach.icon}</span>
+                      {isUnlocked && <span className="absolute -top-1 -right-1 text-xs">✅</span>}
+                      {!isUnlocked && <Lock className="absolute -top-1 -right-1 h-3.5 w-3.5 text-muted-foreground/40" />}
+                    </div>
+                    <div className={`text-xs font-bold ${isUnlocked ? 'text-foreground' : 'text-muted-foreground/60'}`}>{ach.name}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{ach.desc}</div>
+                    {unlockDate && (
+                      <div className="text-[9px] text-muted-foreground/50 mt-1.5 font-medium">
+                        {new Date(unlockDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {activeSection === 'avatars' && (
+          <motion.div key="avatar-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="mt-4">
+            {/* Current avatar preview */}
+            <div className={`rounded-2xl p-5 text-center mb-4 relative overflow-hidden ${gameMode ? 'glass-strong' : 'bg-card border border-border'}`}
+              style={gameMode ? { boxShadow: `0 0 25px rgba(var(--theme-accent-glow), 0.15), 0 8px 32px rgba(0,0,0,0.3)` } : undefined}>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent" />
+              <div className="relative">
+                <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 3, repeat: Infinity }}
+                  className="text-6xl mb-2 inline-block"
+                  style={{ filter: `drop-shadow(0 0 12px ${ALL_AVATARS.find(a => a.id === selectedAvatar)?.glowColor || 'transparent'})` }}>
+                  {ALL_AVATARS.find((a) => a.id === selectedAvatar)?.emoji || '⭐'}
+                </motion.div>
+                <div className="text-lg font-black text-foreground">{ALL_AVATARS.find((a) => a.id === selectedAvatar)?.name || 'Новобранец'}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Текущий аватар</div>
+              </div>
+            </div>
+
+            {/* Avatar grid */}
+            <div className="space-y-2">
+              {ALL_AVATARS.map((avatar, i) => {
+                const isUnlocked = levelInfo.level >= avatar.requiredLevel;
+                const isSelected = selectedAvatar === avatar.id;
+                return (
+                  <motion.button key={avatar.id} onClick={() => isUnlocked && setAvatar(avatar.id)}
+                    whileTap={isUnlocked ? { scale: 0.97 } : {}}
+                    disabled={!isUnlocked}
+                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left overflow-hidden ${
+                      isSelected
+                        ? gameMode ? 'glass-strong ring-1 ring-primary/50' : 'border-2 border-primary bg-primary/5'
+                        : isUnlocked
+                          ? gameMode ? 'glass-strong' : 'border border-border bg-card hover:bg-muted/50'
+                          : `${gameMode ? 'glass opacity-40' : 'bg-card border-border opacity-40'}`
+                    }`}>
+                    <div className={`relative h-12 w-12 rounded-xl bg-gradient-to-br ${avatar.gradient} flex-shrink-0 flex items-center justify-center shadow-sm overflow-hidden ${isSelected ? 'ring-2 ring-primary' : ''}`}
+                      style={isSelected ? { boxShadow: `0 0 12px ${avatar.glowColor}` } : undefined}>
+                      <span className="text-2xl">{avatar.emoji}</span>
+                      {!isUnlocked && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Lock className="h-4 w-4 text-white/60" /></div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-bold text-foreground">{avatar.name}</span>
+                        {isSelected && <span className="text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">Выбран</span>}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {isUnlocked ? 'Разблокирован' : `Требуется уровень ${avatar.requiredLevel}`}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex h-6 w-6 items-center justify-center rounded-full bg-primary flex-shrink-0">
+                        <Check className="h-3.5 w-3.5 text-primary-foreground" />
+                      </motion.div>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="h-4" />
     </motion.div>
   );
 }

@@ -391,6 +391,10 @@
   0% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-30px) scale(0.8); }
 }
+@keyframes overdue-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(239,68,68,0.2); }
+  50% { box-shadow: 0 0 12px rgba(239,68,68,0.4), 0 0 4px rgba(239,68,68,0.6); }
+}
 
 /* ============================================================
    UTILITY CLASSES
@@ -405,6 +409,7 @@
 .animate-ring-rotate { animation: ring-rotate 4s linear infinite; }
 .animate-quest-flash { animation: quest-flash 0.6s ease-out; }
 .animate-xp-drain { animation: xp-drain 0.8s ease-out forwards; }
+.animate-overdue-pulse { animation: overdue-pulse 2s ease-in-out infinite; }
 
 /* Glass morphism (theme-aware) */
 .glass {
